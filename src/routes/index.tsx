@@ -80,10 +80,10 @@ const TOGGLEABLE_WMS_LAYERS = [
   }
 ] as const
 
-// Always-visible layer (not in LayerController)
+// Point layer (toggleable in LayerController)
 const PERMANENT_LAYER = {
   id: 'raster_geo_point',
-  name: 'NOAA Predictions',
+  name: 'Urban Flooding',
   url: import.meta.env.VITE_GEOSERVER_BASE_URL,
   layers: 'flood-app:NOAA_Pred_Sts_Prj', // flood-app:noaa_predictions
   format: 'image/png',
@@ -95,9 +95,13 @@ const PERMANENT_LAYER = {
 function LayerController({
   layerVisibility,
   onLayerToggle,
+  permanentLayerVisible,
+  onPermanentLayerToggle,
 }: {
   layerVisibility: Record<string, boolean>
   onLayerToggle: (layerId: string) => void
+  permanentLayerVisible: boolean
+  onPermanentLayerToggle: () => void
 }) {
   // Get currently selected layer
   const selectedLayerId = Object.keys(layerVisibility).find(
@@ -106,7 +110,7 @@ function LayerController({
 
   return (
     <div
-      className="layer-controller-prevent-click absolute bottom-20 left-4 bg-white p-4 rounded-md shadow-md z-[1000] min-w-[220px] min-h-[180px]"
+      className="layer-controller-prevent-click absolute bottom-20 left-4 bg-white p-4 rounded-md shadow-md z-[1000] min-w-[220px]"
       onClick={(e) => {
         // Stop click propagation to prevent map click handler from firing
         e.stopPropagation()
@@ -117,6 +121,8 @@ function LayerController({
       }}
     >
       <h3 className="font-medium mb-3 text-sm text-gray-800">Layers</h3>
+
+      {/* WMS Layer Dropdown */}
       <select
         value={selectedLayerId}
         onChange={(e) => onLayerToggle(e.target.value)}
@@ -128,6 +134,20 @@ function LayerController({
           </option>
         ))}
       </select>
+
+      {/* Divider */}
+      <hr className="my-3 border-gray-200" />
+
+      {/* Permanent Layer Checkbox */}
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={permanentLayerVisible}
+          onChange={onPermanentLayerToggle}
+          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+        />
+        <span className="text-sm text-gray-700">{PERMANENT_LAYER.name}</span>
+      </label>
     </div>
   )
 }
@@ -536,6 +556,9 @@ function MapComponent() {
   // Base layer state management
   const [selectedBaseLayer, setSelectedBaseLayer] = useState<LayerType>('satellite')
 
+  // Permanent layer visibility state
+  const [permanentLayerVisible, setPermanentLayerVisible] = useState(true)
+
   // Modal and station click state
   const [clickParams, setClickParams] = useState<StationClickParams | null>(null)
   const [selectedStation, setSelectedStation] = useState<StationClickResponse | null>(null)
@@ -887,16 +910,18 @@ function MapComponent() {
             ) : null
           )}
 
-          {/* Permanent Layer (Always Visible) */}
-          <WMSTileLayer
-            key={PERMANENT_LAYER.id}
-            url={PERMANENT_LAYER.url}
-            layers={PERMANENT_LAYER.layers}
-            format={PERMANENT_LAYER.format}
-            transparent={PERMANENT_LAYER.transparent}
-            version={PERMANENT_LAYER.version}
-            zIndex={PERMANENT_LAYER.zIndex}
-          />
+          {/* Permanent Layer (Toggleable via LayerController) */}
+          {permanentLayerVisible && (
+            <WMSTileLayer
+              key={PERMANENT_LAYER.id}
+              url={PERMANENT_LAYER.url}
+              layers={PERMANENT_LAYER.layers}
+              format={PERMANENT_LAYER.format}
+              transparent={PERMANENT_LAYER.transparent}
+              version={PERMANENT_LAYER.version}
+              zIndex={PERMANENT_LAYER.zIndex}
+            />
+          )}
 
           {/* Map Click Handler */}
           <MapClickHandler />
@@ -905,6 +930,8 @@ function MapComponent() {
           <LayerController
             layerVisibility={layerVisibility}
             onLayerToggle={handleLayerToggle}
+            permanentLayerVisible={permanentLayerVisible}
+            onPermanentLayerToggle={() => setPermanentLayerVisible(!permanentLayerVisible)}
           />
 
           {/* Base Layer Switcher (bottom-right) - Hidden in comparison mode */}
